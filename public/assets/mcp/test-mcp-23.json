@@ -1,0 +1,12 @@
+{
+  "id": "mcp-test-23",
+  "title": "Test MCP Server 23",
+  "description": "This is a test MCP server configuration number 23 for testing pagination functionality.",
+  "category": "mcp",
+  "author": "Test Team",
+  "tags": ["test", "mcp", "server23"],
+  "createdAt": "2024-01-23T00:00:00Z",
+  "updatedAt": "2024-01-23T00:00:00Z",
+  "code": "{\n  \"mcpServers\": {\n    \"test23\": {\n      \"command\": \"npx\",\n      \"args\": [\"-y\", \"@test/server-23\"]\n    }\n  }\n}",
+  "usage": "Test configuration 23 for pagination testing."
+}

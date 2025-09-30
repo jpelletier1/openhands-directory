@@ -1,0 +1,10 @@
+{
+  "title": "Slack MCP Server",
+  "description": "Connect to Slack workspaces to send messages, read channels, and manage conversations through MCP.",
+  "author": "Communication Team",
+  "category": "mcp",
+  "tags": ["slack", "messaging", "communication", "api"],
+  "createdAt": "2024-01-20T08:45:00Z",
+  "updatedAt": "2024-01-28T12:00:00Z",
+  "code": "{\n  \"mcpServers\": {\n    \"slack\": {\n      \"command\": \"npx\",\n      \"args\": [\"-y\", \"@modelcontextprotocol/server-slack\"],\n      \"env\": {\n        \"SLACK_BOT_TOKEN\": \"xoxb-your-bot-token-here\",\n        \"SLACK_APP_TOKEN\": \"xapp-your-app-token-here\"\n      }\n    }\n  }\n}"
+}

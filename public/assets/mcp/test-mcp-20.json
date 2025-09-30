@@ -1,0 +1,12 @@
+{
+  "id": "mcp-test-20",
+  "title": "Test MCP Server 20",
+  "description": "This is a test MCP server configuration number 20 for testing pagination functionality.",
+  "category": "mcp",
+  "author": "Test Team",
+  "tags": ["test", "mcp", "server20"],
+  "createdAt": "2024-01-20T00:00:00Z",
+  "updatedAt": "2024-01-20T00:00:00Z",
+  "code": "{\n  \"mcpServers\": {\n    \"test20\": {\n      \"command\": \"npx\",\n      \"args\": [\"-y\", \"@test/server-20\"]\n    }\n  }\n}",
+  "usage": "Test configuration 20 for pagination testing."
+}
