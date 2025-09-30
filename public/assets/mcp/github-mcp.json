@@ -1,0 +1,10 @@
+{
+  "title": "GitHub MCP Server",
+  "description": "A Model Context Protocol server for interacting with GitHub repositories, issues, and pull requests.",
+  "author": "OpenHands Team",
+  "category": "mcp",
+  "tags": ["github", "api", "git", "repositories"],
+  "createdAt": "2024-01-15T10:30:00Z",
+  "updatedAt": "2024-01-20T14:45:00Z",
+  "code": "{\n  \"mcpServers\": {\n    \"github\": {\n      \"command\": \"npx\",\n      \"args\": [\"-y\", \"@modelcontextprotocol/server-github\"],\n      \"env\": {\n        \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"your_github_token_here\"\n      }\n    }\n  }\n}"
+}
