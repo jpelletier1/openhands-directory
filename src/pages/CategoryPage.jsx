@@ -5,20 +5,20 @@ import { loadExamples, getCategoryFromSlug } from '../utils/loadExamples';
 import './CategoryPage.css';
 
 const CategoryPage = () => {
-  const { slug } = useParams();
+  const { category } = useParams();
   const [examples, setExamples] = useState([]);
-  const categoryName = getCategoryFromSlug(slug);
+  const categoryName = getCategoryFromSlug(category);
 
   useEffect(() => {
-    console.log('CategoryPage: Loading examples for slug:', slug);
+    console.log('CategoryPage: Loading examples for category:', category);
     loadExamples().then((allExamples) => {
       console.log('CategoryPage: Total examples loaded:', allExamples.length);
       console.log('CategoryPage: Sample example:', allExamples[0]);
-      const filtered = allExamples.filter(ex => ex.category === slug);
-      console.log('CategoryPage: Filtering by slug:', slug, 'found:', filtered.length);
+      const filtered = allExamples.filter(ex => ex.category === category);
+      console.log('CategoryPage: Filtering by category:', category, 'found:', filtered.length);
       setExamples(filtered);
     });
-  }, [slug]);
+  }, [category]);
 
   return (
     <div className="category-page">
