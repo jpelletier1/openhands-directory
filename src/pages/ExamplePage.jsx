@@ -5,7 +5,7 @@ import { loadExamples, getCategorySlug } from '../utils/loadExamples';
 import './ExamplePage.css';
 
 const ExamplePage = () => {
-  const { id } = useParams();
+  const { category, id } = useParams();
   const [example, setExample] = useState(null);
 
   useEffect(() => {
@@ -25,12 +25,10 @@ const ExamplePage = () => {
     );
   }
 
-  const categorySlug = getCategorySlug(example.category);
-
   return (
     <div className="example-page">
       <div className="example-container">
-        <Link to={`/category/${categorySlug}`} className="back-link">← Back to {example.category}</Link>
+        <Link to={`/category/${category}`} className="back-link">← Back to {example.category}</Link>
         
         <div className="example-content">
           <div className="example-left">

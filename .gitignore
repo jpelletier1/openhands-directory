@@ -1,1 +1,21 @@
 .DS_Store
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Development logs
+server.log
+*.log
+
+# Vite cache
+.vite/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
