@@ -27,7 +27,7 @@ categories.forEach(category => {
     const content = fs.readFileSync(filePath, 'utf8');
     const { data, content: code } = matter(content);
     
-    const fileName = file.replace(/\.(yaml|py)$/, '');
+    const fileName = file.replace(/\.(md|yaml|py)$/, '');
     
     examples.push({
       id: fileName,

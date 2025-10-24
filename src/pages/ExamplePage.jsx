@@ -37,16 +37,16 @@ const ExamplePage = () => {
               <span className="example-author">{example.author}</span>
               <span className="example-badge">{example.category}</span>
             </div>
-          </div>
-          
-          <div className="example-right">
-            <CodeBlock code={example.code} />
             {example.description && (
               <div className="example-description">
                 <h2 className="description-title">Description</h2>
                 <p className="description-text">{example.description}</p>
               </div>
             )}
+          </div>
+          
+          <div className="example-right">
+            <CodeBlock code={example.code} />
           </div>
         </div>
       </div>

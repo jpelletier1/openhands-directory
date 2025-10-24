@@ -20,8 +20,9 @@ public/
     └── sdk/             # Python SDK usage examples
 ```
 
-Each category contains example files in either:
-- **YAML format** (`.yaml`) - for skills and MCP server configurations
+Each category contains example files in different formats:
+- **Markdown format** (`.md`) - for skills
+- **YAML format** (`.yaml`) - for MCP server configurations
 - **Python format** (`.py`) - for SDK examples
 
 ### Example File Format
@@ -30,22 +31,48 @@ All example files use **frontmatter** (YAML header) to define metadata, followed
 
 #### Example Structure:
 
-```yaml
+**For Skills (Markdown):**
+
+```markdown
 ---
-title: Example Title
+title: Example Skill Title
 author: Author Name
 category: skills
-description: A brief description of what this example does.
+description: A brief description of what this skill does.
 ---
 
-# Your code or configuration content goes here
-name: example_skill
-parameters:
-  param1:
-    type: string
-code: |
-  def example():
-      return "Hello World"
+# Your skill documentation and code goes here
+## Overview
+This skill performs X, Y, and Z operations.
+
+## Parameters
+- param1: Description of parameter
+
+## Code
+```python
+def example():
+    return "Hello World"
+```
+```
+
+**For MCP Servers (YAML):**
+
+```yaml
+---
+title: Example MCP Server
+author: Author Name
+category: mcp
+description: MCP server configuration.
+---
+
+{
+  "mcpServers": {
+    "server-name": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-name"]
+    }
+  }
+}
 ```
 
 #### Required Frontmatter Fields:
@@ -114,7 +141,7 @@ Add your example file to the appropriate category directory:
 
 ```bash
 # For a skill
-public/examples/skills/my-new-skill.yaml
+public/examples/skills/my-new-skill.md
 
 # For an MCP server
 public/examples/mcp/my-server.yaml
@@ -125,9 +152,9 @@ public/examples/sdk/my-example.py
 
 ### Step 2: Format Your Example
 
-**For Skills/MCP (YAML):**
+**For Skills (Markdown):**
 
-```yaml
+```markdown
 ---
 title: My New Skill
 author: Your Name
@@ -135,14 +162,42 @@ category: skills
 description: This skill does something amazing.
 ---
 
-name: my_skill
-description: Performs a specific task
-parameters:
-  input:
-    type: string
-code: |
-  def my_function():
-      return "result"
+# My New Skill
+
+## Overview
+This skill performs a specific task and returns useful results.
+
+## Usage
+Describe how to use this skill.
+
+## Code
+```python
+def my_function():
+    return "result"
+```
+```
+
+**For MCP Servers (YAML):**
+
+```yaml
+---
+title: My MCP Server
+author: Your Name
+category: mcp
+description: MCP server for accessing a service.
+---
+
+{
+  "mcpServers": {
+    "my-server": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-name"],
+      "env": {
+        "API_KEY": "${API_KEY}"
+      }
+    }
+  }
+}
 ```
 
 **For SDK Examples (Python):**
@@ -206,9 +261,13 @@ npm run preview
 
 ### File Naming Conventions
 
-- Use **kebab-case** for filenames: `my-example.yaml`, `multi-word-skill.py`
+- Use **kebab-case** for filenames: `my-skill.md`, `my-server.yaml`, `my-example.py`
 - The filename (without extension) becomes the example's `id`
 - Avoid spaces and special characters in filenames
+- File extensions by category:
+  - Skills: `.md` (markdown)
+  - MCP Servers: `.yaml`
+  - SDK Examples: `.py`
 
 ### Categories
 
