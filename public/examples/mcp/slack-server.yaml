@@ -1,0 +1,27 @@
+---
+title: Slack MCP Server
+author: OpenHands Team
+category: mcp
+description: MCP server for Slack integration enabling message sending, channel management, and workspace operations.
+---
+
+name: slack
+description: Slack workspace integration
+tools:
+  - send_message
+  - list_channels
+  - create_channel
+  - get_user_info
+config: |
+  {
+    "mcpServers": {
+      "slack": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-slack"],
+        "env": {
+          "SLACK_BOT_TOKEN": "${SLACK_BOT_TOKEN}",
+          "SLACK_TEAM_ID": "${SLACK_TEAM_ID}"
+        }
+      }
+    }
+  }

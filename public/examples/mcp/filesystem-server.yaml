@@ -1,0 +1,19 @@
+---
+title: Filesystem MCP Server
+author: OpenHands Team
+category: mcp
+description: Model Context Protocol server providing secure filesystem access with read/write operations, directory listing, and file search capabilities.
+---
+
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/path/to/allowed/directory"
+      ]
+    }
+  }
+}

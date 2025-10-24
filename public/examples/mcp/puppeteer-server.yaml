@@ -1,0 +1,24 @@
+---
+title: Puppeteer MCP Server
+author: OpenHands Team
+category: mcp
+description: MCP server for browser automation using Puppeteer for web scraping and testing.
+---
+
+name: puppeteer
+description: Browser automation with Puppeteer
+tools:
+  - navigate
+  - screenshot
+  - click
+  - fill_form
+  - evaluate
+config: |
+  {
+    "mcpServers": {
+      "puppeteer": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-puppeteer"]
+      }
+    }
+  }

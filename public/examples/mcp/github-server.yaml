@@ -1,0 +1,21 @@
+---
+title: GitHub MCP Server
+author: Sarah Chen
+category: mcp
+description: Connect to GitHub API through MCP for repository management, issue tracking, pull requests, and code search across your organizations.
+---
+
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_TOKEN": "your_github_token_here"
+      }
+    }
+  }
+}

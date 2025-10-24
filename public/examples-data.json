@@ -1,0 +1,191 @@
+[
+  {
+    "id": "api-client",
+    "title": "REST API Client Skill",
+    "author": "OpenHands Team",
+    "category": "skills",
+    "description": "Generic REST API client with authentication, retries, and response parsing.",
+    "code": "name: api_client\ndescription: Make HTTP requests to REST APIs\nparameters:\n  url:\n    type: string\n    description: API endpoint URL\n  method:\n    type: string\n    description: HTTP method (GET, POST, PUT, DELETE)\n  headers:\n    type: object\n    description: Request headers\n  data:\n    type: object\n    description: Request body data\ncode: |\n  import requests\n  from requests.adapters import HTTPAdapter\n  from urllib3.util.retry import Retry\n\n  def call_api(url, method='GET', headers=None, data=None):\n      session = requests.Session()\n      retry = Retry(total=3, backoff_factor=0.5)\n      adapter = HTTPAdapter(max_retries=retry)\n      session.mount('http://', adapter)\n      session.mount('https://', adapter)\n\n      response = session.request(method, url, headers=headers, json=data)\n      response.raise_for_status()\n\n      return response.json()",
+    "file": "api-client.yaml"
+  },
+  {
+    "id": "data-analyzer",
+    "title": "Data Analyzer Skill",
+    "author": "Jane Smith",
+    "category": "skills",
+    "description": "Analyze CSV and JSON data files with statistical operations including mean, median, standard deviation, and generate summary reports.",
+    "code": "name: data_analyzer\ndescription: Perform statistical analysis on datasets\nparameters:\n  file_path:\n    type: string\n    description: Path to the data file\n  operations:\n    type: array\n    description: List of operations to perform\ncode: |\n  import pandas as pd\n  import numpy as np\n  \n  def analyze(file_path, operations):\n      df = pd.read_csv(file_path)\n      \n      results = {}\n      for op in operations:\n          if op == 'mean':\n              results['mean'] = df.mean().to_dict()\n          elif op == 'median':\n              results['median'] = df.median().to_dict()\n          elif op == 'std':\n              results['std'] = df.std().to_dict()\n      \n      return results",
+    "file": "data-analyzer.yaml"
+  },
+  {
+    "id": "email-sender",
+    "title": "Email Sender Skill",
+    "author": "OpenHands Team",
+    "category": "skills",
+    "description": "Send emails using SMTP protocol with support for attachments and HTML content.",
+    "code": "name: email_sender\ndescription: Send emails programmatically\nparameters:\n  to:\n    type: string\n    description: Recipient email address\n  subject:\n    type: string\n    description: Email subject\n  body:\n    type: string\n    description: Email body content\n  html:\n    type: boolean\n    description: Whether body contains HTML\ncode: |\n  import smtplib\n  from email.mime.text import MIMEText\n  from email.mime.multipart import MIMEMultipart\n\n  def send_email(to, subject, body, html=False):\n      msg = MIMEMultipart('alternative')\n      msg['Subject'] = subject\n      msg['To'] = to\n\n      content_type = 'html' if html else 'plain'\n      msg.attach(MIMEText(body, content_type))\n\n      with smtplib.SMTP('localhost') as server:\n          server.send_message(msg)",
+    "file": "email-sender.yaml"
+  },
+  {
+    "id": "file-organizer",
+    "title": "File Organizer Skill",
+    "author": "Mike Johnson",
+    "category": "skills",
+    "description": "Automatically organize files in a directory by extension, date, or custom criteria. Supports batch operations and undo functionality.",
+    "code": "name: file_organizer\ndescription: Organize files in directories\nparameters:\n  directory:\n    type: string\n    description: Directory path to organize\n  mode:\n    type: string\n    enum: [extension, date, size]\ncode: |\n  import os\n  import shutil\n  from pathlib import Path\n  \n  def organize(directory, mode='extension'):\n      path = Path(directory)\n      \n      for file in path.iterdir():\n          if file.is_file():\n              if mode == 'extension':\n                  ext = file.suffix[1:] or 'no_extension'\n                  dest_dir = path / ext\n                  dest_dir.mkdir(exist_ok=True)\n                  shutil.move(str(file), str(dest_dir / file.name))\n      \n      return {'status': 'completed'}",
+    "file": "file-organizer.yaml"
+  },
+  {
+    "id": "image-processor",
+    "title": "Image Processor Skill",
+    "author": "OpenHands Team",
+    "category": "skills",
+    "description": "Process and transform images with operations like resize, crop, and filter application using PIL.",
+    "code": "name: image_processor\ndescription: Manipulate images with various operations\nparameters:\n  image_path:\n    type: string\n    description: Path to the input image\n  operation:\n    type: string\n    description: Operation to perform (resize, crop, rotate, filter)\n  params:\n    type: object\n    description: Operation-specific parameters\ncode: |\n  from PIL import Image, ImageFilter\n\n  def process_image(image_path, operation, params):\n      img = Image.open(image_path)\n\n      if operation == 'resize':\n          img = img.resize((params['width'], params['height']))\n      elif operation == 'crop':\n          img = img.crop((params['left'], params['top'], params['right'], params['bottom']))\n      elif operation == 'rotate':\n          img = img.rotate(params['angle'])\n      elif operation == 'filter':\n          img = img.filter(getattr(ImageFilter, params['filter']))\n\n      return img",
+    "file": "image-processor.yaml"
+  },
+  {
+    "id": "pdf-generator",
+    "title": "PDF Generator Skill",
+    "author": "OpenHands Team",
+    "category": "skills",
+    "description": "Generate PDF documents from text, HTML, or templates with custom styling.",
+    "code": "name: pdf_generator\ndescription: Create PDF documents\nparameters:\n  content:\n    type: string\n    description: Content to convert to PDF\n  output_path:\n    type: string\n    description: Path to save the PDF\n  format:\n    type: string\n    description: Input format (text, html, markdown)\ncode: |\n  from reportlab.lib.pagesizes import letter\n  from reportlab.pdfgen import canvas\n\n  def generate_pdf(content, output_path, format='text'):\n      c = canvas.Canvas(output_path, pagesize=letter)\n      width, height = letter\n\n      y = height - 50\n      for line in content.split('\\n'):\n          c.drawString(50, y, line)\n          y -= 20\n\n      c.save()\n      return output_path",
+    "file": "pdf-generator.yaml"
+  },
+  {
+    "id": "web-scraper",
+    "title": "Web Scraper Skill",
+    "author": "OpenHands Team",
+    "category": "skills",
+    "description": "A powerful web scraping skill that extracts data from websites using BeautifulSoup and requests libraries. Perfect for gathering structured data from HTML pages.",
+    "code": "name: web_scraper\ndescription: Extract data from web pages\nparameters:\n  url:\n    type: string\n    description: The URL to scrape\n  selectors:\n    type: object\n    description: CSS selectors for data extraction\ncode: |\n  import requests\n  from bs4 import BeautifulSoup\n  \n  def scrape(url, selectors):\n      response = requests.get(url)\n      soup = BeautifulSoup(response.content, 'html.parser')\n      \n      results = {}\n      for key, selector in selectors.items():\n          elements = soup.select(selector)\n          results[key] = [el.text.strip() for el in elements]\n      \n      return results",
+    "file": "web-scraper.yaml"
+  },
+  {
+    "id": "database-server",
+    "title": "PostgreSQL MCP Server",
+    "author": "David Lee",
+    "category": "mcp",
+    "description": "MCP server for PostgreSQL database operations including queries, schema inspection, and transaction management with connection pooling.",
+    "code": "{\n  \"mcpServers\": {\n    \"postgresql\": {\n      \"command\": \"npx\",\n      \"args\": [\n        \"-y\",\n        \"@modelcontextprotocol/server-postgres\"\n      ],\n      \"env\": {\n        \"DATABASE_URL\": \"postgresql://user:pass@localhost:5432/dbname\"\n      }\n    }\n  }\n}",
+    "file": "database-server.yaml"
+  },
+  {
+    "id": "filesystem-server",
+    "title": "Filesystem MCP Server",
+    "author": "OpenHands Team",
+    "category": "mcp",
+    "description": "Model Context Protocol server providing secure filesystem access with read/write operations, directory listing, and file search capabilities.",
+    "code": "{\n  \"mcpServers\": {\n    \"filesystem\": {\n      \"command\": \"npx\",\n      \"args\": [\n        \"-y\",\n        \"@modelcontextprotocol/server-filesystem\",\n        \"/path/to/allowed/directory\"\n      ]\n    }\n  }\n}",
+    "file": "filesystem-server.yaml"
+  },
+  {
+    "id": "github-server",
+    "title": "GitHub MCP Server",
+    "author": "Sarah Chen",
+    "category": "mcp",
+    "description": "Connect to GitHub API through MCP for repository management, issue tracking, pull requests, and code search across your organizations.",
+    "code": "{\n  \"mcpServers\": {\n    \"github\": {\n      \"command\": \"npx\",\n      \"args\": [\n        \"-y\",\n        \"@modelcontextprotocol/server-github\"\n      ],\n      \"env\": {\n        \"GITHUB_TOKEN\": \"your_github_token_here\"\n      }\n    }\n  }\n}",
+    "file": "github-server.yaml"
+  },
+  {
+    "id": "google-drive-server",
+    "title": "Google Drive MCP Server",
+    "author": "OpenHands Team",
+    "category": "mcp",
+    "description": "MCP server for Google Drive access enabling file operations, sharing, and search.",
+    "code": "name: google-drive\ndescription: Google Drive integration\ntools:\n  - list_files\n  - upload_file\n  - download_file\n  - share_file\n  - search_files\nconfig: |\n  {\n    \"mcpServers\": {\n      \"google-drive\": {\n        \"command\": \"npx\",\n        \"args\": [\"-y\", \"@modelcontextprotocol/server-gdrive\"],\n        \"env\": {\n          \"GOOGLE_CLIENT_ID\": \"${GOOGLE_CLIENT_ID}\",\n          \"GOOGLE_CLIENT_SECRET\": \"${GOOGLE_CLIENT_SECRET}\",\n          \"GOOGLE_REFRESH_TOKEN\": \"${GOOGLE_REFRESH_TOKEN}\"\n        }\n      }\n    }\n  }",
+    "file": "google-drive-server.yaml"
+  },
+  {
+    "id": "postgres-server",
+    "title": "PostgreSQL MCP Server",
+    "author": "OpenHands Team",
+    "category": "mcp",
+    "description": "MCP server for PostgreSQL database access with query execution and schema inspection.",
+    "code": "name: postgres\ndescription: PostgreSQL database integration\ntools:\n  - execute_query\n  - list_tables\n  - describe_table\n  - get_schema\nconfig: |\n  {\n    \"mcpServers\": {\n      \"postgres\": {\n        \"command\": \"npx\",\n        \"args\": [\"-y\", \"@modelcontextprotocol/server-postgres\"],\n        \"env\": {\n          \"POSTGRES_CONNECTION_STRING\": \"${POSTGRES_CONNECTION_STRING}\"\n        }\n      }\n    }\n  }",
+    "file": "postgres-server.yaml"
+  },
+  {
+    "id": "puppeteer-server",
+    "title": "Puppeteer MCP Server",
+    "author": "OpenHands Team",
+    "category": "mcp",
+    "description": "MCP server for browser automation using Puppeteer for web scraping and testing.",
+    "code": "name: puppeteer\ndescription: Browser automation with Puppeteer\ntools:\n  - navigate\n  - screenshot\n  - click\n  - fill_form\n  - evaluate\nconfig: |\n  {\n    \"mcpServers\": {\n      \"puppeteer\": {\n        \"command\": \"npx\",\n        \"args\": [\"-y\", \"@modelcontextprotocol/server-puppeteer\"]\n      }\n    }\n  }",
+    "file": "puppeteer-server.yaml"
+  },
+  {
+    "id": "slack-server",
+    "title": "Slack MCP Server",
+    "author": "OpenHands Team",
+    "category": "mcp",
+    "description": "MCP server for Slack integration enabling message sending, channel management, and workspace operations.",
+    "code": "name: slack\ndescription: Slack workspace integration\ntools:\n  - send_message\n  - list_channels\n  - create_channel\n  - get_user_info\nconfig: |\n  {\n    \"mcpServers\": {\n      \"slack\": {\n        \"command\": \"npx\",\n        \"args\": [\"-y\", \"@modelcontextprotocol/server-slack\"],\n        \"env\": {\n          \"SLACK_BOT_TOKEN\": \"${SLACK_BOT_TOKEN}\",\n          \"SLACK_TEAM_ID\": \"${SLACK_TEAM_ID}\"\n        }\n      }\n    }\n  }",
+    "file": "slack-server.yaml"
+  },
+  {
+    "id": "async-operations",
+    "title": "Async Operations SDK Example",
+    "author": "Emily White",
+    "category": "sdk",
+    "description": "Demonstrates asynchronous agent operations for handling multiple tasks concurrently with proper error handling and result aggregation.",
+    "code": "import asyncio\nfrom openhands import AsyncAgent\n\nasync def main():\n    agent = AsyncAgent(model=\"gpt-4\")\n    \n    tasks = [\n        agent.run(\"Analyze data.csv\"),\n        agent.run(\"Generate report from results\"),\n        agent.run(\"Create visualization\")\n    ]\n    \n    results = await asyncio.gather(*tasks)\n    \n    for i, result in enumerate(results):\n        print(f\"Task {i+1}: {result.output}\")\n\nif __name__ == \"__main__\":\n    asyncio.run(main())",
+    "file": "async-operations.py"
+  },
+  {
+    "id": "basic-agent",
+    "title": "Basic Agent SDK Example",
+    "author": "OpenHands Team",
+    "category": "sdk",
+    "description": "Simple example demonstrating how to create and run an OpenHands agent using the Python SDK with custom instructions and file operations.",
+    "code": "from openhands import Agent\n\nagent = Agent(\n    model=\"gpt-4\",\n    instructions=\"You are a helpful coding assistant\"\n)\n\nresult = agent.run(\n    task=\"Create a Python function that calculates fibonacci numbers\",\n    workspace=\"/workspace\"\n)\n\nprint(result.output)",
+    "file": "basic-agent.py"
+  },
+  {
+    "id": "custom-tools",
+    "title": "Custom Tools SDK Example",
+    "author": "Alex Rodriguez",
+    "category": "sdk",
+    "description": "Advanced example showing how to extend OpenHands with custom tools, including API integrations and specialized functions for your workflow.",
+    "code": "from openhands import Agent, Tool\n\nclass WeatherTool(Tool):\n    name = \"get_weather\"\n    description = \"Get current weather for a location\"\n    \n    def run(self, location: str):\n        # Implementation here\n        return f\"Weather data for {location}\"\n\nagent = Agent(\n    model=\"gpt-4\",\n    tools=[WeatherTool()]\n)\n\nresult = agent.run(\n    task=\"What's the weather in San Francisco?\"\n)",
+    "file": "custom-tools.py"
+  },
+  {
+    "id": "error-handling",
+    "title": "Error Handling and Retries",
+    "author": "OpenHands Team",
+    "category": "sdk",
+    "description": "Robust error handling with retries, fallbacks, and graceful degradation.",
+    "code": "from openhands import Agent\nfrom openhands.exceptions import AgentError, ToolError, TimeoutError\nfrom openhands.retry import RetryPolicy\n\nretry_policy = RetryPolicy(\n    max_attempts=3,\n    backoff_factor=2,\n    retry_on=[ToolError, TimeoutError]\n)\n\nagent = Agent(\n    name=\"resilient_agent\",\n    retry_policy=retry_policy,\n    fallback_strategy=\"degrade\"\n)\n\ntry:\n    response = agent.execute(\n        \"Analyze this document and extract key points\",\n        timeout=30\n    )\nexcept AgentError as e:\n    print(f\"Agent error: {e.message}\")\n    fallback_response = agent.execute_fallback(e)\n    print(f\"Fallback response: {fallback_response}\")\nexcept TimeoutError:\n    print(\"Operation timed out, retrying with simpler approach...\")\n    response = agent.execute_simple(\"Summarize the document\")\nfinally:\n    agent.cleanup()",
+    "file": "error-handling.py"
+  },
+  {
+    "id": "memory-agent",
+    "title": "Agent with Memory",
+    "author": "OpenHands Team",
+    "category": "sdk",
+    "description": "Agent with persistent memory for context-aware conversations and learning.",
+    "code": "from openhands import Agent\nfrom openhands.memory import VectorMemory, ConversationMemory\n\nvector_memory = VectorMemory(\n    storage=\"chromadb\",\n    collection=\"agent_knowledge\"\n)\n\nconversation_memory = ConversationMemory(\n    max_history=10,\n    summarize=True\n)\n\nagent = Agent(\n    name=\"memory_agent\",\n    memory=[vector_memory, conversation_memory]\n)\n\nagent.remember(\"User prefers Python over JavaScript\")\nagent.remember(\"Project deadline is next Friday\")\n\nresponse = agent.execute(\n    \"What programming language should I use for the project?\"\n)\n\ncontext = agent.recall(\"programming language preference\")\nprint(f\"Recalled context: {context}\")\nprint(f\"Response: {response.output}\")",
+    "file": "memory-agent.py"
+  },
+  {
+    "id": "multi-agent",
+    "title": "Multi-Agent Collaboration",
+    "author": "OpenHands Team",
+    "category": "sdk",
+    "description": "Coordinate multiple specialized agents to solve complex tasks through collaboration.",
+    "code": "from openhands import Agent, Coordinator\n\nresearcher = Agent(\n    name=\"researcher\",\n    role=\"Research and gather information\",\n    tools=[\"web_search\", \"document_reader\"]\n)\n\ncoder = Agent(\n    name=\"coder\",\n    role=\"Write and test code\",\n    tools=[\"code_editor\", \"test_runner\"]\n)\n\nreviewer = Agent(\n    name=\"reviewer\",\n    role=\"Review and validate solutions\",\n    tools=[\"code_analyzer\", \"security_scanner\"]\n)\n\ncoordinator = Coordinator(agents=[researcher, coder, reviewer])\n\nresult = coordinator.execute(\n    task=\"Build a secure REST API with documentation\",\n    workflow=\"sequential\"\n)\n\nprint(f\"Task completed by {len(result.agents_used)} agents\")\nprint(f\"Final output: {result.output}\")",
+    "file": "multi-agent.py"
+  },
+  {
+    "id": "streaming-agent",
+    "title": "Streaming Agent",
+    "author": "OpenHands Team",
+    "category": "sdk",
+    "description": "Agent with streaming responses for real-time interaction and progress updates.",
+    "code": "from openhands import Agent\nfrom openhands.streaming import StreamingHandler\n\nclass ProgressHandler(StreamingHandler):\n    def on_token(self, token):\n        print(token, end='', flush=True)\n\n    def on_complete(self, response):\n        print(f\"\\nCompleted: {response.status}\")\n\nagent = Agent(\n    name=\"streaming_agent\",\n    streaming_handler=ProgressHandler()\n)\n\nresponse = agent.execute(\n    \"Write a Python function to calculate fibonacci numbers\",\n    stream=True\n)\n\nfor chunk in response:\n    print(f\"Progress: {chunk.progress}%\")",
+    "file": "streaming-agent.py"
+  }
+]

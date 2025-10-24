@@ -1,0 +1,31 @@
+.category-card {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 32px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: block;
+}
+
+.category-card:hover {
+  border-color: #666;
+  transform: translateY(-2px);
+}
+
+.category-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.category-card-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.category-card-count {
+  font-size: 14px;
+  color: #999;
+}

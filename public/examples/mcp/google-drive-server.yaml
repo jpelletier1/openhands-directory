@@ -1,0 +1,29 @@
+---
+title: Google Drive MCP Server
+author: OpenHands Team
+category: mcp
+description: MCP server for Google Drive access enabling file operations, sharing, and search.
+---
+
+name: google-drive
+description: Google Drive integration
+tools:
+  - list_files
+  - upload_file
+  - download_file
+  - share_file
+  - search_files
+config: |
+  {
+    "mcpServers": {
+      "google-drive": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-gdrive"],
+        "env": {
+          "GOOGLE_CLIENT_ID": "${GOOGLE_CLIENT_ID}",
+          "GOOGLE_CLIENT_SECRET": "${GOOGLE_CLIENT_SECRET}",
+          "GOOGLE_REFRESH_TOKEN": "${GOOGLE_REFRESH_TOKEN}"
+        }
+      }
+    }
+  }

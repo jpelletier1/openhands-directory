@@ -1,0 +1,30 @@
+---
+title: Web Scraper Skill
+author: OpenHands Team
+category: skills
+description: A powerful web scraping skill that extracts data from websites using BeautifulSoup and requests libraries. Perfect for gathering structured data from HTML pages.
+---
+
+name: web_scraper
+description: Extract data from web pages
+parameters:
+  url:
+    type: string
+    description: The URL to scrape
+  selectors:
+    type: object
+    description: CSS selectors for data extraction
+code: |
+  import requests
+  from bs4 import BeautifulSoup
+  
+  def scrape(url, selectors):
+      response = requests.get(url)
+      soup = BeautifulSoup(response.content, 'html.parser')
+      
+      results = {}
+      for key, selector in selectors.items():
+          elements = soup.select(selector)
+          results[key] = [el.text.strip() for el in elements]
+      
+      return results

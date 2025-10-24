@@ -1,0 +1,21 @@
+---
+title: PostgreSQL MCP Server
+author: David Lee
+category: mcp
+description: MCP server for PostgreSQL database operations including queries, schema inspection, and transaction management with connection pooling.
+---
+
+{
+  "mcpServers": {
+    "postgresql": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres"
+      ],
+      "env": {
+        "DATABASE_URL": "postgresql://user:pass@localhost:5432/dbname"
+      }
+    }
+  }
+}

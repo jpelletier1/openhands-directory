@@ -1,0 +1,38 @@
+---
+title: REST API Client Skill
+author: OpenHands Team
+category: skills
+description: Generic REST API client with authentication, retries, and response parsing.
+---
+
+name: api_client
+description: Make HTTP requests to REST APIs
+parameters:
+  url:
+    type: string
+    description: API endpoint URL
+  method:
+    type: string
+    description: HTTP method (GET, POST, PUT, DELETE)
+  headers:
+    type: object
+    description: Request headers
+  data:
+    type: object
+    description: Request body data
+code: |
+  import requests
+  from requests.adapters import HTTPAdapter
+  from urllib3.util.retry import Retry
+
+  def call_api(url, method='GET', headers=None, data=None):
+      session = requests.Session()
+      retry = Retry(total=3, backoff_factor=0.5)
+      adapter = HTTPAdapter(max_retries=retry)
+      session.mount('http://', adapter)
+      session.mount('https://', adapter)
+
+      response = session.request(method, url, headers=headers, json=data)
+      response.raise_for_status()
+
+      return response.json()
