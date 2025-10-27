@@ -1,0 +1,323 @@
+name: Sync and Enrich Data
+
+on:
+  workflow_dispatch:
+    # Allow manual triggering
+
+jobs:
+  sync-and-enrich:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout current repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install openhands-sdk pydantic pyyaml
+
+    - name: Clone source repository (OpenHands/OpenHands)
+      run: |
+        git clone https://github.com/OpenHands/OpenHands.git source
+        echo "Source repository cloned successfully"
+
+    - name: Clone destination repository (jpelletier1/openhands-directory)
+      run: |
+        git clone https://github.com/jpelletier1/openhands-directory.git destination
+        echo "Destination repository cloned successfully"
+
+    - name: Create destination directory if it doesn't exist
+      run: |
+        mkdir -p destination/examples/skills
+        echo "Destination directory created/verified"
+
+    - name: Copy files from source to destination
+      run: |
+        if [ -d "source/microagents" ]; then
+          cp -r source/microagents/* destination/examples/skills/
+          echo "Files copied from source/microagents to destination/examples/skills"
+        else
+          echo "Warning: source/microagents directory not found"
+          ls -la source/
+        fi
+
+    - name: Create frontmatter enrichment script
+      run: |
+        cat > enrich_frontmatter.py << 'EOF'
+        import os
+        import re
+        import subprocess
+        import yaml
+        from pathlib import Path
+        from pydantic import SecretStr
+        from openhands.sdk import LLM, Conversation
+        from openhands.tools.preset.default import get_default_agent
+
+        def has_frontmatter(file_path):
+            """Check if a file has YAML frontmatter"""
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                if content.startswith('---\n'):
+                    # Find the end of frontmatter
+                    end_match = re.search(r'\n---\n', content[4:])
+                    if end_match:
+                        frontmatter_content = content[4:end_match.start() + 4]
+                        try:
+                            yaml.safe_load(frontmatter_content)
+                            return True
+                        except yaml.YAMLError:
+                            return False
+                return False
+            except Exception as e:
+                print(f"Error checking frontmatter in {file_path}: {e}")
+                return False
+
+        def get_original_author(file_path, source_dir):
+            """Get the original author of a file from git history"""
+            try:
+                # Get relative path from source directory
+                rel_path = os.path.relpath(file_path, source_dir)
+                
+                # Change to source directory and run git command
+                original_cwd = os.getcwd()
+                os.chdir(source_dir)
+                
+                cmd = f"git log --diff-filter=A --follow --format='%an' -- {rel_path} | tail -1"
+                result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+                
+                os.chdir(original_cwd)
+                
+                if result.returncode == 0 and result.stdout.strip():
+                    return result.stdout.strip()
+                else:
+                    return "Unknown"
+            except Exception as e:
+                print(f"Error getting author for {file_path}: {e}")
+                return "Unknown"
+
+        def categorize_file(file_path, content):
+            """Determine category based on file content and name"""
+            file_name = os.path.basename(file_path).lower()
+            content_lower = content.lower()
+            
+            # Check deployment first as it's more specific
+            if any(keyword in file_name or keyword in content_lower for keyword in ['deploy', 'deployment', 'ci', 'cd']):
+                return "deployment"
+            elif any(keyword in file_name or keyword in content_lower for keyword in ['test', 'testing', 'spec']):
+                return "testing"
+            elif 'code-review' in file_name or 'code-review' in content_lower or (file_name.startswith('review') and not file_name.startswith('readme')) or (' pr ' in content_lower or content_lower.startswith('pr ') or content_lower.endswith(' pr')):
+                return "code-review"
+            elif any(keyword in file_name or keyword in content_lower for keyword in ['debug', 'fix', 'error']):
+                return "debugging"
+            elif any(keyword in file_name or keyword in content_lower for keyword in ['doc', 'documentation', 'readme']):
+                return "documentation"
+            elif any(keyword in file_name or keyword in content_lower for keyword in ['refactor', 'clean', 'optimize']):
+                return "refactoring"
+            else:
+                return "general"
+
+        def enrich_with_llm(file_path, content, author, category):
+            """Use OpenHands Agent SDK to generate title and description"""
+            try:
+                # Configure LLM and agent
+                api_key = os.getenv("LLM_API_KEY")
+                if not api_key:
+                    print("Warning: LLM_API_KEY not set, using placeholder values")
+                    return {
+                        'title': f"Microagent: {os.path.basename(file_path)}",
+                        'description': "A microagent for automated task execution",
+                        'category': category,
+                        'author': author
+                    }
+                
+                model = os.getenv("LLM_MODEL", "openhands/claude-sonnet-4-5-20250929")
+                base_url = os.getenv("LLM_BASE_URL")
+                
+                llm = LLM(
+                    model=model,
+                    api_key=SecretStr(api_key),
+                    base_url=base_url,
+                    usage_id="agent",
+                )
+                agent = get_default_agent(llm=llm, cli_mode=True)
+                
+                # Create a temporary workspace
+                temp_dir = "/tmp/enrich_workspace"
+                os.makedirs(temp_dir, exist_ok=True)
+                
+                conversation = Conversation(agent=agent, workspace=temp_dir)
+                
+                # Prepare the prompt
+                prompt = f"""
+                Analyze this microagent file and generate appropriate frontmatter:
+                
+                File name: {os.path.basename(file_path)}
+                Category: {category}
+                Author: {author}
+                
+                Content:
+                {content[:2000]}...
+                
+                Please provide:
+                1. A concise, descriptive title (max 60 characters)
+                2. A clear description of what this microagent does (max 200 characters)
+                
+                Format your response as:
+                Title: [your title here]
+                Description: [your description here]
+                """
+                
+                conversation.send_message(prompt)
+                response = conversation.run()
+                
+                # Parse the response
+                title_match = re.search(r'Title:\s*(.+)', response, re.IGNORECASE)
+                desc_match = re.search(r'Description:\s*(.+)', response, re.IGNORECASE)
+                
+                title = title_match.group(1).strip() if title_match else f"Microagent: {os.path.basename(file_path)}"
+                description = desc_match.group(1).strip() if desc_match else "A microagent for automated task execution"
+                
+                # Ensure limits
+                title = title[:60] if len(title) > 60 else title
+                description = description[:200] if len(description) > 200 else description
+                
+                return {
+                    'title': title,
+                    'description': description,
+                    'category': category,
+                    'author': author
+                }
+                
+            except Exception as e:
+                print(f"Error enriching with LLM: {e}")
+                return {
+                    'title': f"Microagent: {os.path.basename(file_path)}",
+                    'description': "A microagent for automated task execution",
+                    'category': category,
+                    'author': author
+                }
+
+        def add_frontmatter(file_path, frontmatter_data):
+            """Add frontmatter to a file"""
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                # Create frontmatter
+                frontmatter = "---\n"
+                frontmatter += f"title: \"{frontmatter_data['title']}\"\n"
+                frontmatter += f"description: \"{frontmatter_data['description']}\"\n"
+                frontmatter += f"category: {frontmatter_data['category']}\n"
+                frontmatter += f"author: {frontmatter_data['author']}\n"
+                frontmatter += "---\n\n"
+                
+                # Write the file with frontmatter
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(frontmatter + content)
+                
+                print(f"Added frontmatter to {file_path}")
+                
+            except Exception as e:
+                print(f"Error adding frontmatter to {file_path}: {e}")
+
+        def main():
+            source_dir = "source"
+            dest_dir = "destination/examples/skills"
+            
+            if not os.path.exists(dest_dir):
+                print(f"Destination directory {dest_dir} does not exist")
+                return
+            
+            # Process all files in destination directory
+            for root, dirs, files in os.walk(dest_dir):
+                for file in files:
+                    if file.endswith(('.md', '.txt', '.py', '.js', '.ts')):
+                        file_path = os.path.join(root, file)
+                        
+                        # Check if file already has frontmatter
+                        if has_frontmatter(file_path):
+                            print(f"Skipping {file_path} - already has frontmatter")
+                            continue
+                        
+                        print(f"Processing {file_path}")
+                        
+                        # Read file content
+                        try:
+                            with open(file_path, 'r', encoding='utf-8') as f:
+                                content = f.read()
+                        except Exception as e:
+                            print(f"Error reading {file_path}: {e}")
+                            continue
+                        
+                        # Get original author
+                        author = get_original_author(file_path, source_dir)
+                        
+                        # Determine category
+                        category = categorize_file(file_path, content)
+                        
+                        # Enrich with LLM
+                        frontmatter_data = enrich_with_llm(file_path, content, author, category)
+                        
+                        # Add frontmatter
+                        add_frontmatter(file_path, frontmatter_data)
+
+        if __name__ == "__main__":
+            main()
+        EOF
+
+    - name: Run frontmatter enrichment
+      env:
+        LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+        LLM_MODEL: ${{ secrets.LLM_MODEL || 'openhands/claude-sonnet-4-5-20250929' }}
+        LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+      run: |
+        python enrich_frontmatter.py
+
+    - name: Configure Git
+      run: |
+        cd destination
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Commit and push changes
+      env:
+        GITHUB_TOKEN: ${{ secrets.DESTINATION_REPO_TOKEN }}
+      run: |
+        cd destination
+        git add .
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "Sync and enrich microagents from OpenHands/OpenHands
+
+          - Synced files from OpenHands/microagents
+          - Added frontmatter to files without it
+          - Enriched with title, description, category, and author information
+          
+          Co-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+          
+          # Push to the destination repository
+          git remote set-url origin https://${GITHUB_TOKEN}@github.com/jpelletier1/openhands-directory.git
+          git push origin main
+          echo "Changes pushed successfully"
+        fi
+
+    - name: Summary
+      run: |
+        echo "Workflow completed successfully!"
+        echo "- Cloned OpenHands/OpenHands repository"
+        echo "- Cloned jpelletier1/openhands-directory repository"
+        echo "- Copied files from microagents to examples/skills"
+        echo "- Enriched files with frontmatter using OpenHands Agent SDK"
+        echo "- Committed and pushed changes"
