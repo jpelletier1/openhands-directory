@@ -157,9 +157,6 @@ File name: {os.path.basename(file_path)}
 Category: {category}
 Author: {author}
 
-Content:
-{content[:2000]}...
-
 Please provide:
 1. A concise, descriptive title (max 60 characters)
 2. A clear description of what this microagent does (max 200 characters)
