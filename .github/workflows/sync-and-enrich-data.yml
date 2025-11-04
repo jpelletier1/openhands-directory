@@ -59,8 +59,7 @@ jobs:
         import yaml
         from pathlib import Path
         from pydantic import SecretStr
-        from openhands.sdk import LLM, Conversation
-        from openhands.tools.preset.default import get_default_agent
+        from openhands.sdk import LLM
 
         def has_frontmatter(file_path):
             """Check if a file has YAML frontmatter"""
@@ -128,9 +127,9 @@ jobs:
                 return "general"
 
         def enrich_with_llm(file_path, content, author, category):
-            """Use OpenHands Agent SDK to generate title and description"""
+            """Use OpenHands SDK to generate title and description"""
             try:
-                # Configure LLM and agent
+                # Configure LLM
                 api_key = os.getenv("LLM_API_KEY")
                 if not api_key:
                     print("Warning: LLM_API_KEY not set, using placeholder values")
@@ -147,43 +146,39 @@ jobs:
                 llm = LLM(
                     model=model,
                     api_key=SecretStr(api_key),
-                    base_url=base_url,
-                    usage_id="agent",
+                    base_url=base_url if base_url else None,
+                    usage_id="enrich_frontmatter",
                 )
-                agent = get_default_agent(llm=llm, cli_mode=True)
-                
-                # Create a temporary workspace
-                temp_dir = "/tmp/enrich_workspace"
-                os.makedirs(temp_dir, exist_ok=True)
-                
-                conversation = Conversation(agent=agent, workspace=temp_dir)
                 
                 # Prepare the prompt
-                prompt = f"""
-                Analyze this microagent file and generate appropriate frontmatter:
+                prompt = f"""Analyze this microagent file and generate appropriate frontmatter:
+
+File name: {os.path.basename(file_path)}
+Category: {category}
+Author: {author}
+
+Content:
+{content[:2000]}...
+
+Please provide:
+1. A concise, descriptive title (max 60 characters)
+2. A clear description of what this microagent does (max 200 characters)
+
+Format your response as:
+Title: [your title here]
+Description: [your description here]"""
                 
-                File name: {os.path.basename(file_path)}
-                Category: {category}
-                Author: {author}
+                # Make direct LLM call
+                response = llm.completion(
+                    messages=[{"role": "user", "content": prompt}]
+                )
                 
-                Content:
-                {content[:2000]}...
-                
-                Please provide:
-                1. A concise, descriptive title (max 60 characters)
-                2. A clear description of what this microagent does (max 200 characters)
-                
-                Format your response as:
-                Title: [your title here]
-                Description: [your description here]
-                """
-                
-                conversation.send_message(prompt)
-                response = conversation.run()
+                # Extract text from response
+                response_text = response.choices[0].message.content if hasattr(response, 'choices') else str(response)
                 
                 # Parse the response
-                title_match = re.search(r'Title:\s*(.+)', response, re.IGNORECASE)
-                desc_match = re.search(r'Description:\s*(.+)', response, re.IGNORECASE)
+                title_match = re.search(r'Title:\s*(.+)', response_text, re.IGNORECASE)
+                desc_match = re.search(r'Description:\s*(.+)', response_text, re.IGNORECASE)
                 
                 title = title_match.group(1).strip() if title_match else f"Microagent: {os.path.basename(file_path)}"
                 description = desc_match.group(1).strip() if desc_match else "A microagent for automated task execution"
@@ -201,6 +196,8 @@ jobs:
                 
             except Exception as e:
                 print(f"Error enriching with LLM: {e}")
+                import traceback
+                traceback.print_exc()
                 return {
                     'title': f"Microagent: {os.path.basename(file_path)}",
                     'description': "A microagent for automated task execution",
