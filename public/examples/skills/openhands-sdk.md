@@ -4,21 +4,7 @@ type: knowledge
 version: 1.0.0
 agent: CodeActAgent
 triggers:
-  - openhands sdk
-  - software agent sdk
-  - agent sdk
-  - create agent
-  - build agent
-  - openhands agent
-  - coding agent
-  - llm agent
-  - conversation agent
-  - agent tools
-  - custom tools
-  - agent context
-  - agent skills
-  - agent conversation
-  - agent workspace
+  - /openhands-sdk
 ---
 
 # OpenHands Software Agent SDK Microagent
