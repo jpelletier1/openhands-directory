@@ -39,9 +39,12 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        echo "$GITHUB_TOKEN" | gh auth login --with-token
+        # GitHub CLI will automatically use GITHUB_TOKEN environment variable
+        gh auth status
 
     - name: Clone microagents directory using GitHub CLI
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         # Create the skills directory if it doesn't exist
         mkdir -p public/examples/skills
