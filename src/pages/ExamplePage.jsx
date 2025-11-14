@@ -7,15 +7,41 @@ import './ExamplePage.css';
 const ExamplePage = () => {
   const { category, id } = useParams();
   const [example, setExample] = useState(null);
+  const [code, setCode] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  const loadCodeFromFile = async (example) => {
+    try {
+      // Construct the file path based on the example data
+      const filePath = `/examples/${example.category}/${example.file}`;
+      const response = await fetch(filePath);
+      
+      if (response.ok) {
+        const fileContent = await response.text();
+        setCode(fileContent);
+      } else {
+        console.error(`Failed to load file: ${filePath}`);
+        setCode('// Error: Could not load file content');
+      }
+    } catch (error) {
+      console.error('Error loading file:', error);
+      setCode('// Error: Could not load file content');
+    }
+  };
 
   useEffect(() => {
     loadExamples().then((allExamples) => {
       const found = allExamples.find(ex => ex.id === id);
-      setExample(found);
+      if (found) {
+        setExample(found);
+        loadCodeFromFile(found).finally(() => setLoading(false));
+      } else {
+        setLoading(false);
+      }
     });
   }, [id]);
 
-  if (!example) {
+  if (!example || loading) {
     return (
       <div className="example-page">
         <div className="example-container">
@@ -46,7 +72,7 @@ const ExamplePage = () => {
           </div>
           
           <div className="example-right">
-            <CodeBlock code={example.code} />
+            <CodeBlock code={code} />
           </div>
         </div>
       </div>
