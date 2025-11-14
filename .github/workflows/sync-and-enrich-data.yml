@@ -3,6 +3,9 @@ name: Sync and Enrich Data
 on:
   workflow_dispatch:
     # Allow manual triggering
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
 
 jobs:
   sync-and-enrich:
@@ -25,119 +28,66 @@ jobs:
         python -m pip install --upgrade pip
         pip install openhands-sdk pydantic pyyaml
 
-    - name: Clone source repository (OpenHands/OpenHands)
+    - name: Install GitHub CLI
       run: |
-        git clone https://github.com/OpenHands/OpenHands.git source
-        echo "Source repository cloned successfully"
+        curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+        sudo apt update
+        sudo apt install gh
 
-    - name: Clone destination repository (jpelletier1/openhands-directory)
+    - name: Authenticate GitHub CLI
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        git clone https://github.com/jpelletier1/openhands-directory.git destination
-        echo "Destination repository cloned successfully"
+        echo "$GITHUB_TOKEN" | gh auth login --with-token
 
-    - name: Create destination directory if it doesn't exist
+    - name: Clone microagents directory using GitHub CLI
       run: |
-        mkdir -p destination/examples/skills
-        echo "Destination directory created/verified"
-
-    - name: Copy files from source to destination
-      run: |
-        if [ -d "source/microagents" ]; then
-          cp -r source/microagents/* destination/examples/skills/
-          echo "Files copied from source/microagents to destination/examples/skills"
+        # Create the skills directory if it doesn't exist
+        mkdir -p public/examples/skills
+        
+        # Remove existing files to ensure clean sync
+        rm -rf public/examples/skills/*
+        
+        # Use GitHub CLI to download the microagents directory
+        gh repo clone OpenHands/OpenHands temp_openhands --depth 1
+        
+        # Copy microagents content to skills directory
+        if [ -d "temp_openhands/microagents" ]; then
+          cp -r temp_openhands/microagents/* public/examples/skills/
+          echo "Successfully cloned microagents to public/examples/skills"
         else
-          echo "Warning: source/microagents directory not found"
-          ls -la source/
+          echo "Warning: microagents directory not found in OpenHands repository"
+          ls -la temp_openhands/
         fi
+        
+        # Clean up temporary directory
+        rm -rf temp_openhands
 
-    - name: Create frontmatter enrichment script
+    - name: Create sync and enrich script
       run: |
-        cat > enrich_frontmatter.py << 'EOF'
+        cat > sync_and_enrich.py << 'EOF'
         import os
+        import json
         import re
-        import subprocess
         import yaml
         from pathlib import Path
         from pydantic import SecretStr
         from openhands.sdk import LLM
 
-        def has_frontmatter(file_path):
-            """Check if a file has YAML frontmatter"""
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                
-                if content.startswith('---\n'):
-                    # Find the end of frontmatter
-                    end_match = re.search(r'\n---\n', content[4:])
-                    if end_match:
-                        frontmatter_content = content[4:end_match.start() + 4]
-                        try:
-                            yaml.safe_load(frontmatter_content)
-                            return True
-                        except yaml.YAMLError:
-                            return False
-                return False
-            except Exception as e:
-                print(f"Error checking frontmatter in {file_path}: {e}")
-                return False
 
-        def get_original_author(file_path, source_dir):
-            """Get the original author of a file from git history"""
-            try:
-                # Get relative path from source directory
-                rel_path = os.path.relpath(file_path, source_dir)
-                
-                # Change to source directory and run git command
-                original_cwd = os.getcwd()
-                os.chdir(source_dir)
-                
-                cmd = f"git log --diff-filter=A --follow --format='%an' -- {rel_path} | tail -1"
-                result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-                
-                os.chdir(original_cwd)
-                
-                if result.returncode == 0 and result.stdout.strip():
-                    return result.stdout.strip()
-                else:
-                    return "Unknown"
-            except Exception as e:
-                print(f"Error getting author for {file_path}: {e}")
-                return "Unknown"
 
-        def categorize_file(file_path, content):
-            """Determine category based on file content and name"""
-            file_name = os.path.basename(file_path).lower()
-            content_lower = content.lower()
-            
-            # Check deployment first as it's more specific
-            if any(keyword in file_name or keyword in content_lower for keyword in ['deploy', 'deployment', 'ci', 'cd']):
-                return "deployment"
-            elif any(keyword in file_name or keyword in content_lower for keyword in ['test', 'testing', 'spec']):
-                return "testing"
-            elif 'code-review' in file_name or 'code-review' in content_lower or (file_name.startswith('review') and not file_name.startswith('readme')) or (' pr ' in content_lower or content_lower.startswith('pr ') or content_lower.endswith(' pr')):
-                return "code-review"
-            elif any(keyword in file_name or keyword in content_lower for keyword in ['debug', 'fix', 'error']):
-                return "debugging"
-            elif any(keyword in file_name or keyword in content_lower for keyword in ['doc', 'documentation', 'readme']):
-                return "documentation"
-            elif any(keyword in file_name or keyword in content_lower for keyword in ['refactor', 'clean', 'optimize']):
-                return "refactoring"
-            else:
-                return "general"
-
-        def enrich_with_llm(file_path, content, author, category):
+        def generate_title_and_description(file_path, content):
             """Use OpenHands SDK to generate title and description"""
             try:
                 # Configure LLM
                 api_key = os.getenv("LLM_API_KEY")
                 if not api_key:
                     print("Warning: LLM_API_KEY not set, using placeholder values")
+                    filename = os.path.basename(file_path)
                     return {
-                        'title': f"Microagent: {os.path.basename(file_path)}",
-                        'description': "A microagent for automated task execution",
-                        'category': category,
-                        'author': author
+                        'title': filename.replace('.md', '').replace('_', ' ').title()[:25],
+                        'description': "Automated task execution microagent"[:20]
                     }
                 
                 model = os.getenv("LLM_MODEL", "openhands/claude-sonnet-4-5-20250929")
@@ -147,104 +97,110 @@ jobs:
                     model=model,
                     api_key=SecretStr(api_key),
                     base_url=base_url if base_url else None,
-                    usage_id="enrich_frontmatter",
+                    usage_id="sync_and_enrich",
                 )
                 
-                # Prepare the prompt
-                prompt = f"""Analyze this microagent file and generate appropriate frontmatter:
-
-File name: {os.path.basename(file_path)}
-Category: {category}
-Author: {author}
-
-Please provide:
-1. A concise, descriptive title (max 60 characters)
-2. A clear description of what this microagent does (max 200 characters)
-
-Format your response as:
-Title: [your title here]
-Description: [your description here]"""
+                # Prepare the prompt for title (5 words or less)
+                title_prompt = f"Generate a concise title for this microagent file. The title must be 5 words or less.\n\nFile name: {os.path.basename(file_path)}\nContent preview: {content[:500]}...\n\nRespond with only the title, no additional text."
                 
-                # Make direct LLM call
-                response = llm.completion(
-                    messages=[{"role": "user", "content": prompt}]
+                # Generate title
+                title_response = llm.completion(
+                    messages=[{"role": "user", "content": title_prompt}]
                 )
                 
-                # Extract text from response
-                response_text = response.choices[0].message.content if hasattr(response, 'choices') else str(response)
+                title_text = title_response.choices[0].message.content if hasattr(title_response, 'choices') else str(title_response)
+                title = title_text.strip().strip('"').strip("'")
                 
-                # Parse the response
-                title_match = re.search(r'Title:\s*(.+)', response_text, re.IGNORECASE)
-                desc_match = re.search(r'Description:\s*(.+)', response_text, re.IGNORECASE)
+                # Ensure title is 5 words or less
+                title_words = title.split()
+                if len(title_words) > 5:
+                    title = ' '.join(title_words[:5])
                 
-                title = title_match.group(1).strip() if title_match else f"Microagent: {os.path.basename(file_path)}"
-                description = desc_match.group(1).strip() if desc_match else "A microagent for automated task execution"
+                # Prepare the prompt for description (20 words or less)
+                desc_prompt = f"Generate a brief description for this microagent. The description must be 20 words or less.\n\nFile name: {os.path.basename(file_path)}\nContent preview: {content[:500]}...\n\nRespond with only the description, no additional text."
                 
-                # Ensure limits
-                title = title[:60] if len(title) > 60 else title
-                description = description[:200] if len(description) > 200 else description
+                # Generate description
+                desc_response = llm.completion(
+                    messages=[{"role": "user", "content": desc_prompt}]
+                )
+                
+                desc_text = desc_response.choices[0].message.content if hasattr(desc_response, 'choices') else str(desc_response)
+                description = desc_text.strip().strip('"').strip("'")
+                
+                # Ensure description is 20 words or less
+                desc_words = description.split()
+                if len(desc_words) > 20:
+                    description = ' '.join(desc_words[:20])
                 
                 return {
                     'title': title,
-                    'description': description,
-                    'category': category,
-                    'author': author
+                    'description': description
                 }
                 
             except Exception as e:
-                print(f"Error enriching with LLM: {e}")
+                print(f"Error generating title/description with LLM: {e}")
                 import traceback
                 traceback.print_exc()
+                filename = os.path.basename(file_path)
                 return {
-                    'title': f"Microagent: {os.path.basename(file_path)}",
-                    'description': "A microagent for automated task execution",
-                    'category': category,
-                    'author': author
+                    'title': filename.replace('.md', '').replace('_', ' ').title()[:25],
+                    'description': "Automated task execution microagent"[:20]
                 }
 
-        def add_frontmatter(file_path, frontmatter_data):
-            """Add frontmatter to a file"""
+        def sync_examples_data():
+            """Sync examples-data.json with files in public/examples/skills"""
+            examples_data_path = "public/examples-data.json"
+            skills_dir = "public/examples/skills"
+            
+            # Load existing examples data
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                
-                # Create frontmatter
-                frontmatter = "---\n"
-                frontmatter += f"title: \"{frontmatter_data['title']}\"\n"
-                frontmatter += f"description: \"{frontmatter_data['description']}\"\n"
-                frontmatter += f"category: {frontmatter_data['category']}\n"
-                frontmatter += f"author: {frontmatter_data['author']}\n"
-                frontmatter += "---\n\n"
-                
-                # Write the file with frontmatter
-                with open(file_path, 'w', encoding='utf-8') as f:
-                    f.write(frontmatter + content)
-                
-                print(f"Added frontmatter to {file_path}")
-                
+                with open(examples_data_path, 'r', encoding='utf-8') as f:
+                    examples_data = json.load(f)
+            except FileNotFoundError:
+                examples_data = []
             except Exception as e:
-                print(f"Error adding frontmatter to {file_path}: {e}")
-
-        def main():
-            source_dir = "source"
-            dest_dir = "destination/examples/skills"
+                print(f"Error loading examples-data.json: {e}")
+                examples_data = []
             
-            if not os.path.exists(dest_dir):
-                print(f"Destination directory {dest_dir} does not exist")
-                return
+            # Get current skills files
+            skills_files = set()
+            if os.path.exists(skills_dir):
+                for root, dirs, files in os.walk(skills_dir):
+                    for file in files:
+                        if file.endswith(('.md', '.py', '.js', '.ts', '.txt')):
+                            rel_path = os.path.relpath(os.path.join(root, file), skills_dir)
+                            # Extract skill name from directory structure
+                            skill_name = os.path.dirname(rel_path) if os.path.dirname(rel_path) else 'general'
+                            filename = os.path.splitext(file)[0]
+                            file_id = f"{skill_name}-{filename}"
+                            skills_files.add(file_id)
             
-            # Process all files in destination directory
-            for root, dirs, files in os.walk(dest_dir):
-                for file in files:
-                    if file.endswith(('.md', '.txt', '.py', '.js', '.ts')):
-                        file_path = os.path.join(root, file)
-                        
-                        # Check if file already has frontmatter
-                        if has_frontmatter(file_path):
-                            print(f"Skipping {file_path} - already has frontmatter")
-                            continue
-                        
-                        print(f"Processing {file_path}")
+            # Get current skills entries in examples data
+            skills_entries = {item['id']: item for item in examples_data if item.get('category') == 'skills'}
+            
+            # Remove entries that no longer exist in files
+            examples_data = [item for item in examples_data if not (item.get('category') == 'skills' and item['id'] not in skills_files)]
+            
+            # Add new entries for files not in examples data
+            for file_id in skills_files:
+                if file_id not in skills_entries:
+                    # Find the actual file path
+                    file_path = None
+                    for root, dirs, files in os.walk(skills_dir):
+                        for file in files:
+                            if file.endswith(('.md', '.py', '.js', '.ts', '.txt')):
+                                rel_path = os.path.relpath(os.path.join(root, file), skills_dir)
+                                skill_name = os.path.dirname(rel_path) if os.path.dirname(rel_path) else 'general'
+                                filename = os.path.splitext(file)[0]
+                                current_id = f"{skill_name}-{filename}"
+                                if current_id == file_id:
+                                    file_path = os.path.join(root, file)
+                                    break
+                        if file_path:
+                            break
+                    
+                    if file_path:
+                        print(f"Processing new file: {file_path}")
                         
                         # Read file content
                         try:
@@ -254,55 +210,69 @@ Description: [your description here]"""
                             print(f"Error reading {file_path}: {e}")
                             continue
                         
-                        # Get original author
-                        author = get_original_author(file_path, source_dir)
+                        # Generate title and description using SDK
+                        generated = generate_title_and_description(file_path, content)
                         
-                        # Determine category
-                        category = categorize_file(file_path, content)
+                        # Create new entry (no code field - will be loaded from file)
+                        new_entry = {
+                            'id': file_id,
+                            'title': generated['title'],
+                            'author': 'OpenHands Team',
+                            'category': 'skills',
+                            'description': generated['description'],
+                            'file': os.path.basename(file_path)
+                        }
                         
-                        # Enrich with LLM
-                        frontmatter_data = enrich_with_llm(file_path, content, author, category)
-                        
-                        # Add frontmatter
-                        add_frontmatter(file_path, frontmatter_data)
+                        examples_data.append(new_entry)
+                        print(f"Added new entry: {file_id}")
+            
+            # Save updated examples data
+            try:
+                with open(examples_data_path, 'w', encoding='utf-8') as f:
+                    json.dump(examples_data, f, indent=2, ensure_ascii=False)
+                print(f"Updated {examples_data_path}")
+            except Exception as e:
+                print(f"Error saving examples-data.json: {e}")
+
+        def main():
+            print("Starting sync and enrich process...")
+            sync_examples_data()
+            print("Sync and enrich process completed!")
 
         if __name__ == "__main__":
             main()
         EOF
 
-    - name: Run frontmatter enrichment
+    - name: Run sync and enrich process
       env:
         LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
         LLM_MODEL: ${{ secrets.LLM_MODEL || 'openhands/claude-sonnet-4-5-20250929' }}
         LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
       run: |
-        python enrich_frontmatter.py
+        python sync_and_enrich.py
 
     - name: Configure Git
       run: |
-        cd destination
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
 
     - name: Commit and push changes
       env:
-        GITHUB_TOKEN: ${{ secrets.DESTINATION_REPO_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        cd destination
         git add .
         if git diff --staged --quiet; then
           echo "No changes to commit"
         else
           git commit -m "Sync and enrich microagents from OpenHands/OpenHands
 
-          - Synced files from OpenHands/microagents
-          - Added frontmatter to files without it
-          - Enriched with title, description, category, and author information
+          - Synced microagents directory to public/examples/skills using GitHub CLI
+          - Updated examples-data.json to sync with current skills files
+          - Generated titles (5 words max) and descriptions (20 words max) using OpenHands SDK
+          - Removed obsolete entries and added new entries for skills category
           
           Co-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
           
-          # Push to the destination repository
-          git remote set-url origin https://${GITHUB_TOKEN}@github.com/jpelletier1/openhands-directory.git
           git push origin main
           echo "Changes pushed successfully"
         fi
@@ -310,8 +280,7 @@ Description: [your description here]"""
     - name: Summary
       run: |
         echo "Workflow completed successfully!"
-        echo "- Cloned OpenHands/OpenHands repository"
-        echo "- Cloned jpelletier1/openhands-directory repository"
-        echo "- Copied files from microagents to examples/skills"
-        echo "- Enriched files with frontmatter using OpenHands Agent SDK"
-        echo "- Committed and pushed changes"
+        echo "- Used GitHub CLI to clone microagents directory to public/examples/skills"
+        echo "- Synced examples-data.json with current skills files"
+        echo "- Generated titles and descriptions using OpenHands SDK"
+        echo "- Committed and pushed changes to repository"
