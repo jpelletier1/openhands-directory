@@ -53,7 +53,7 @@ jobs:
         rm -rf public/examples/skills/*
         
         # Use GitHub CLI to download the microagents directory
-        gh repo clone OpenHands/OpenHands temp_openhands --depth 1
+        gh repo clone OpenHands/OpenHands temp_openhands -- --depth 1
         
         # Copy microagents content to skills directory
         if [ -d "temp_openhands/microagents" ]; then
